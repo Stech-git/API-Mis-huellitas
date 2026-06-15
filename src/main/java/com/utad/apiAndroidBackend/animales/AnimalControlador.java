@@ -16,38 +16,32 @@ public class AnimalControlador {
         this.servicio = servicio;
     }
 
-    // Obtener animal
     @GetMapping("/{id}")
     public Animal obtener(@PathVariable Long id) {
         return servicio.obtener(id);
     }
 
-    // Crear animal
-    @PostMapping("/")
+    @PostMapping
     public Animal crear(@RequestBody CrearRequest req) {
         return servicio.crear(req.usuario, req.animal);
     }
 
-    // Editar animal
     @PutMapping("/{id}")
-    public Animal editar(@PathVariable Long id, @RequestBody EditarRequest req) {
+    public Animal editar(@PathVariable Long id,
+                         @RequestBody EditarRequest req) {
         return servicio.editar(id, req.usuario, req.animal);
     }
-    
- // Listar animales de un usuario
+
     @GetMapping("/usuario/{usuarioId}")
     public List<Animal> listarPorUsuario(@PathVariable Long usuarioId) {
         return servicio.listarPorUsuario(usuarioId);
     }
 
-
-    // Listar animales
-    @GetMapping("/")
+    @GetMapping("/todos")
     public List<Animal> listar() {
         return servicio.listar();
     }
-    
- // LISTAR ANIMALES (con o sin filtros)
+
     @GetMapping
     public List<Animal> listarConFiltros(
             @RequestParam(required = false) String estado,
@@ -57,21 +51,21 @@ public class AnimalControlador {
         return servicio.listarConFiltros(estado, especie, edad);
     }
 
-    // Ocultar
     @PutMapping("/{id}/ocultar")
-    public void ocultar(@PathVariable Long id, @RequestBody Usuario usuario) {
+    public void ocultar(@PathVariable Long id,
+                        @RequestBody Usuario usuario) {
         servicio.ocultar(id, usuario);
     }
 
-    // Restaurar
     @PutMapping("/{id}/restaurar")
-    public void restaurar(@PathVariable Long id, @RequestBody Usuario usuario) {
+    public void restaurar(@PathVariable Long id,
+                          @RequestBody Usuario usuario) {
         servicio.restaurar(id, usuario);
     }
 
-    // Eliminar
     @PutMapping("/{id}/eliminar")
-    public void eliminar(@PathVariable Long id, @RequestBody Usuario usuario) {
+    public void eliminar(@PathVariable Long id,
+                         @RequestBody Usuario usuario) {
         servicio.eliminar(id, usuario);
     }
 
@@ -85,4 +79,3 @@ public class AnimalControlador {
         public Animal animal;
     }
 }
-

@@ -22,8 +22,8 @@ public class ConversacionRepositorio {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    // Crear conversación normal (ya lo tenías)
-    public void crear(Conversacion conversacion) {
+    // Crear conversación normal o soporte
+    public Long crear(Conversacion conversacion) {
 
         String sql = """
             INSERT INTO conversaciones
@@ -44,11 +44,20 @@ public class ConversacionRepositorio {
             return ps;
         }, keyHolder);
 
-        conversacion.id = keyHolder.getKey().longValue();
+        Long idGenerado = keyHolder.getKey().longValue();
+        conversacion.id = idGenerado;
+
+        return idGenerado;
     }
 
-    // 🔥 NUEVO: Crear conversación de soporte
+    // Crear conversación de soporte entre usuario concreto y admin concreto
     public Long crearSoporte(Long usuarioId, Long adminId, String categoria) {
+
+        Conversacion existente = buscarSoporteEntreUsuarioYAdmin(usuarioId, adminId);
+
+        if (existente != null) {
+            return existente.id;
+        }
 
         String sql = """
             INSERT INTO conversaciones
@@ -69,19 +78,19 @@ public class ConversacionRepositorio {
         return keyHolder.getKey().longValue();
     }
 
-    // Buscar conversación por ID
     public Conversacion buscarPorId(Long conversacionId) {
 
         String sql = "SELECT * FROM conversaciones WHERE id = ?";
 
-        List<Conversacion> conversaciones = jdbcTemplate.query(sql,
+        List<Conversacion> conversaciones = jdbcTemplate.query(
+                sql,
                 ps -> ps.setLong(1, conversacionId),
-                (result, rowNum) -> mapConversacion(result));
+                (result, rowNum) -> mapConversacion(result)
+        );
 
         return conversaciones.isEmpty() ? null : conversaciones.get(0);
     }
 
-    // Listar conversaciones de un usuario
     public List<Conversacion> listarPorUsuario(Long usuarioId) {
 
         String sql = """
@@ -97,7 +106,6 @@ public class ConversacionRepositorio {
 
             Conversacion conversacion = mapConversacion(result);
 
-            // DESCIFRAR EL ÚLTIMO MENSAJE
             String ultimo = conversacion.ultimo_mensaje;
             conversacion.ultimo_mensaje = (ultimo != null) ? AESUtil.decrypt(ultimo) : null;
 
@@ -105,7 +113,7 @@ public class ConversacionRepositorio {
         });
     }
 
-    // Buscar conversación normal entre dos usuarios
+    // Buscar conversación exacta entre dos usuarios
     public Conversacion buscarEntreUsuarios(Long u1, Long u2) {
 
         String sql = """
@@ -127,33 +135,47 @@ public class ConversacionRepositorio {
         return lista.isEmpty() ? null : lista.get(0);
     }
 
-    // Buscar si ya tiene chat de soporte
+    // Soporte exacto entre usuario y admin
+    public Conversacion buscarSoporteEntreUsuarioYAdmin(Long usuarioId, Long adminId) {
+
+        String sql = """
+            SELECT * FROM conversaciones
+            WHERE es_soporte = TRUE
+              AND (
+                    (usuario_1_id = ? AND usuario_2_id = ?)
+                    OR
+                    (usuario_1_id = ? AND usuario_2_id = ?)
+                  )
+            LIMIT 1
+        """;
+
+        List<Conversacion> lista = jdbcTemplate.query(sql, ps -> {
+            ps.setLong(1, usuarioId);
+            ps.setLong(2, adminId);
+            ps.setLong(3, adminId);
+            ps.setLong(4, usuarioId);
+        }, (rs, rowNum) -> mapConversacion(rs));
+
+        return lista.isEmpty() ? null : lista.get(0);
+    }
+
+    // Lo dejo por compatibilidad, pero ya NO deberías usarlo para abrir chat desde admin
     public Conversacion buscarSoporte(Long usuarioId) {
 
         String sql = """
             SELECT * FROM conversaciones
             WHERE usuario_1_id = ? AND es_soporte = TRUE
+            ORDER BY fecha_ultimo_mensaje DESC
             LIMIT 1
         """;
 
-        List<Conversacion> lista = jdbcTemplate.query(sql,
+        List<Conversacion> lista = jdbcTemplate.query(
+                sql,
                 ps -> ps.setLong(1, usuarioId),
-                (rs, rowNum) -> mapConversacion(rs));
+                (rs, rowNum) -> mapConversacion(rs)
+        );
 
         return lista.isEmpty() ? null : lista.get(0);
-    }
-
-    // Mapeo general
-    private Conversacion mapConversacion(ResultSet rs) throws SQLException {
-        Conversacion c = new Conversacion();
-        c.id = rs.getLong("id");
-        c.usuario_1_id = rs.getLong("usuario_1_id");
-        c.usuario_2_id = rs.getLong("usuario_2_id");
-        c.es_soporte = rs.getBoolean("es_soporte");
-        c.categoria_soporte = rs.getString("categoria_soporte");
-        c.ultimo_mensaje = rs.getString("ultimo_mensaje");
-        c.fecha_ultimo_mensaje = rs.getString("fecha_ultimo_mensaje");
-        return c;
     }
 
     public void actualizarUltimoMensaje(Long conversacionId, String mensajePlano) {
@@ -170,6 +192,18 @@ public class ConversacionRepositorio {
             ps.setString(1, mensajeCifrado);
             ps.setLong(2, conversacionId);
         });
+    }
+
+    private Conversacion mapConversacion(ResultSet rs) throws SQLException {
+        Conversacion c = new Conversacion();
+        c.id = rs.getLong("id");
+        c.usuario_1_id = rs.getLong("usuario_1_id");
+        c.usuario_2_id = rs.getLong("usuario_2_id");
+        c.es_soporte = rs.getBoolean("es_soporte");
+        c.categoria_soporte = rs.getString("categoria_soporte");
+        c.ultimo_mensaje = rs.getString("ultimo_mensaje");
+        c.fecha_ultimo_mensaje = rs.getString("fecha_ultimo_mensaje");
+        return c;
     }
 }
 

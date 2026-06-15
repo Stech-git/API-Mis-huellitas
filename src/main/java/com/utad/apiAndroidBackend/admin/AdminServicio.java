@@ -25,9 +25,13 @@ public class AdminServicio {
 	private final AnimalRepositorio animalRepositorio;
 	private final ReporteRepositorio reporteRepositorio;
 
-	public AdminServicio(AccionAdminRepositorio accionAdminRepositorio, CodigoAdminRepositorio codigoAdminRepositorio,
-			UsuarioRepositorio usuarioRepositorio, AnimalRepositorio animalRepositorio,
-			ReporteRepositorio reporteRepositorio) {
+	public AdminServicio(
+			AccionAdminRepositorio accionAdminRepositorio,
+			CodigoAdminRepositorio codigoAdminRepositorio,
+			UsuarioRepositorio usuarioRepositorio,
+			AnimalRepositorio animalRepositorio,
+			ReporteRepositorio reporteRepositorio
+	) {
 		this.accionAdminRepositorio = accionAdminRepositorio;
 		this.codigoAdminRepositorio = codigoAdminRepositorio;
 		this.usuarioRepositorio = usuarioRepositorio;
@@ -67,9 +71,13 @@ public class AdminServicio {
 		codigoAdminRepositorio.marcarUsado(codigoEncontrado.id);
 	}
 
-	public void registrarAccion(Usuario administrador, String tipoAccion, String tipoObjetivo, Long objetivoId,
-			String descripcion) {
-
+	public void registrarAccion(
+			Usuario administrador,
+			String tipoAccion,
+			String tipoObjetivo,
+			Long objetivoId,
+			String descripcion
+	) {
 		if (!administrador.es_admin) {
 			throw new Excepciones.PermisoInsuficienteException("No eres administrador");
 		}
@@ -94,7 +102,6 @@ public class AdminServicio {
 		return accionAdminRepositorio.listar();
 	}
 
-	// MODERACIÓN DE PUBLICACIONES
 	public void cambiarEstadoPublicacion(Long animalId, Usuario admin, String nuevoEstado) {
 
 		if (!admin.es_admin) {
@@ -103,7 +110,13 @@ public class AdminServicio {
 
 		animalRepositorio.actualizarEstadoModeracion(animalId, nuevoEstado);
 
-		registrarAccion(admin, "CAMBIAR_ESTADO_PUBLICACION", "ANIMAL", animalId, "Estado cambiado a: " + nuevoEstado);
+		registrarAccion(
+				admin,
+				"CORREGIR_PUBLICACION",
+				"ANIMAL",
+				animalId,
+				"Estado de publicación cambiado a: " + nuevoEstado
+		);
 	}
 
 	public void cambiarVisibilidadPublicacion(Long animalId, Usuario admin, boolean visible) {
@@ -114,8 +127,15 @@ public class AdminServicio {
 
 		animalRepositorio.actualizarVisibilidad(animalId, visible);
 
-		registrarAccion(admin, "CAMBIAR_VISIBILIDAD_PUBLICACION", "ANIMAL", animalId,
-				visible ? "Publicación visible" : "Publicación oculta");
+		String tipoAccion = visible ? "RESTAURAR_PUBLICACION" : "OCULTAR_PUBLICACION";
+
+		registrarAccion(
+				admin,
+				tipoAccion,
+				"ANIMAL",
+				animalId,
+				visible ? "Publicación visible" : "Publicación oculta"
+		);
 	}
 
 	public AdminControlador.ReportesResumenResponse obtenerResumenReportes(Long animalId, Usuario admin) {
@@ -150,31 +170,19 @@ public class AdminServicio {
 
 		AdminControlador.EstadisticasResponse resp = new AdminControlador.EstadisticasResponse();
 
-		// Totales
 		resp.totalUsuarios = usuarioRepositorio.contarUsuarios();
 		resp.totalAnimales = animalRepositorio.contarAnimales();
 		resp.totalPublicaciones = animalRepositorio.contarPublicadas();
 		resp.totalReportes = reporteRepositorio.contarReportes();
 
-		// Si no tienes adopciones, lo dejamos en 0
 		resp.totalAdopciones = 0;
-
-		// Si no tienes visitas hoy, lo dejamos en 0
 		resp.visitasHoy = 0;
 
-		// Animales por especie
 		resp.animalesPorEspecie = animalRepositorio.contarPorEspecie();
-
-		// Publicaciones por mes (últimos 6 meses)
 		resp.publicacionesPorMes = animalRepositorio.publicacionesPorMes();
-
-		// Adopciones por mes (si no existe, devolvemos lista vacía)
 		resp.adopcionesPorMes = Arrays.asList(0, 0, 0, 0, 0, 0);
-
-		// Reportes por categoría
 		resp.reportesPorCategoria = reporteRepositorio.contarPorCategoria();
 
 		return resp;
 	}
-
 }
